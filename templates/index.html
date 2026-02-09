@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNotes - Accueil</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <!-- Navigation avec url_for pour Flask -->
+    <nav class="bg-blue-600 text-white p-4 shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="{{ url_for('index') }}" class="text-2xl font-black tracking-tighter flex items-center">
+                <i class="fas fa-graduation-cap mr-2"></i>EDUNOTES
+            </a>
+            <div class="hidden md:flex space-x-6 items-center font-medium">
+                <a href="{{ url_for('index') }}" class="text-blue-100 hover:text-white transition">Accueil</a>
+                <a href="{{ url_for('releve') }}" class="text-blue-100 hover:text-white transition">Mon Relevé</a>
+                <a href="{{ url_for('ajouter') }}" class="bg-white text-blue-600 px-4 py-2 rounded-lg shadow-sm hover:bg-blue-50 transition transform hover:scale-105">
+                    <i class="fas fa-plus mr-2"></i>Nouvelle Note
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto mt-8 px-4 pb-12">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <h1 class="text-3xl font-extrabold text-slate-800">Tableau de Bord Étudiant</h1>
+            <div class="relative">
+                <input type="text" id="searchMatiere" placeholder="Rechercher une matière..." 
+                    class="pl-10 pr-4 py-2 border rounded-full focus:ring-2 focus:ring-blue-400 focus:outline-none w-64 shadow-sm">
+                <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+            <!-- Stats Cards -->
+            <div class="lg:col-span-1 flex flex-col gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 fade-in">
+                    <p class="text-slate-500 uppercase text-xs font-bold tracking-widest">Moyenne Générale</p>
+                    <div class="flex items-baseline gap-2 mt-2">
+                        <span class="text-5xl font-black text-blue-600">{{ "%.2f"|format(moyenne|default(0)) }}</span>
+                        <span class="text-slate-400 font-bold">/20</span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 fade-in">
+                    <p class="text-slate-500 uppercase text-xs font-bold tracking-widest">Statut Final</p>
+                    <div class="mt-2 flex items-center gap-3">
+                        {% if moyenne and moyenne >= 10 %}
+                        <div class="h-4 w-4 rounded-full bg-green-500 animate-pulse"></div>
+                        <span class="text-2xl font-bold text-green-600">ADMIS</span>
+                        {% elif moyenne and moyenne < 10 %}
+                        <div class="h-4 w-4 rounded-full bg-red-500 animate-pulse"></div>
+                        <span class="text-2xl font-bold text-red-600">AJOURNÉ</span>
+                        {% else %}
+                        <span class="text-slate-400">Aucune donnée</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 fade-in">
+                <h3 class="text-sm font-bold text-slate-500 uppercase mb-4">Répartition des Notes</h3>
+                <canvas id="notesChart" height="150"></canvas>
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden fade-in">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold text-slate-800">Matières Enregistrées</h2>
+                <span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">{{ notes|length if notes else 0 }} matières</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left" id="notesTable">
+                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                        <tr>
+                            <th class="p-4">Matière</th>
+                            <th class="p-4">Note</th>
+                            <th class="p-4">Coefficient</th>
+                            <th class="p-4 text-center">Performance</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for n in notes %}
+                        <tr class="hover:bg-slate-50 transition cursor-default note-row">
+                            <td class="p-4 font-semibold text-slate-700 matiere-name">{{ n.matiere }}</td>
+                            <td class="p-4">
+                                <span class="{% if n.note >= 10 %}text-green-600{% else %}text-red-500{% endif %} font-black text-lg">
+                                    {{ n.note }}
+                                </span>
+                            </td>
+                            <td class="p-4 text-slate-500 font-medium">x{{ n.coefficient }}</td>
+                            <td class="p-4">
+                                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                    <div class="{% if n.note >= 10 %}bg-green-400{% else %}bg-red-400{% endif %} h-full" 
+                                         style="width: {{ (n.note / 20) * 100 }}%"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="p-8 text-center text-slate-400 italic">
+                                Aucune note enregistrée pour le moment.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Stockage des données JSON pour éviter les erreurs de syntaxe dans l'aperçu -->
+    <!-- Cette balise est lue par JS mais son contenu est ignoré par l'interpréteur de script -->
+    <script id="chart-data" type="application/json">
+        {
+            "labels": [{% for n in notes %}"{{ n.matiere|safe }}"{% if not loop.last %},{% endif %}{% endfor %}],
+            "values": [{% for n in notes %}{{ n.note }}{% if not loop.last %},{% endif %}{% endfor %}]
+        }
+    </script>
+
+    <script>
+        // Recherche dynamique
+        const searchInput = document.getElementById('searchMatiere');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function() {
+                const filter = this.value.toLowerCase();
+                const rows = document.querySelectorAll('.note-row');
+                
+                rows.forEach(row => {
+                    const name = row.querySelector('.matiere-name').textContent.toLowerCase();
+                    row.style.display = name.includes(filter) ? '' : 'none';
+                });
+            });
+        }
+
+        // Initialisation de Chart.js
+        window.addEventListener('load', function() {
+            try {
+                const dataElement = document.getElementById('chart-data');
+                if (!dataElement) return;
+
+                const rawData = dataElement.textContent.trim();
+                
+                // Si le JSON contient encore des "%", cela signifie que Flask n'a pas rendu la page
+                // On n'exécute pas le script pour éviter le crash de l'aperçu
+                if (rawData.includes('%')) {
+                    console.log("Aperçu local : rendu Jinja2 non détecté. Graphique désactivé.");
+                    return;
+                }
+
+                const chartData = JSON.parse(rawData);
+                const ctx = document.getElementById('notesChart');
+
+                if (ctx && chartData.labels && chartData.labels.length > 0) {
+                    new Chart(ctx.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: chartData.labels,
+                            datasets: [{
+                                label: 'Note / 20',
+                                data: chartData.values,
+                                backgroundColor: 'rgba(37, 99, 235, 0.7)',
+                                borderColor: 'rgb(37, 99, 235)',
+                                borderWidth: 1,
+                                borderRadius: 8
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: { beginAtZero: true, max: 20, grid: { display: false } },
+                                x: { grid: { display: false } }
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Erreur d'initialisation du graphique :", e);
+            }
+        });
+    </script>
+</body>
+</html>
